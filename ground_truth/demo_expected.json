@@ -1,0 +1,22 @@
+{
+  "null_logic_demo": [
+    {"customer_id": 2},
+    {"customer_id": 3}
+  ],
+  "date_boundary_demo": [
+    {"order_id": 1},
+    {"order_id": 2}
+  ],
+  "aggregate_duplicate_demo": [
+    {"customer_id": 10, "total_amount": 400.0},
+    {"customer_id": 12, "total_amount": 400.0}
+  ],
+  "zero_vs_null_demo": [
+    {"invoice_id": 2}
+  ],
+  "join_semantics_demo": [
+    {"order_id": 21},
+    {"order_id": 23},
+    {"order_id": 24}
+  ]
+}

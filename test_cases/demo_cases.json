@@ -1,0 +1,103 @@
+{
+  "benchmark": "SQLTrap-Eval Demo",
+  "tasks": [
+    {
+      "id": "null_logic_demo",
+      "category": "NULL Semantics",
+      "title": "Paid but not cancelled",
+      "question": "List customer ids whose cancelled_at is NULL and paid_at is not NULL.",
+      "schema_sql": "CREATE TABLE orders (customer_id INTEGER, paid_at TEXT, cancelled_at TEXT);",
+      "inserts": [
+        "INSERT INTO orders VALUES (1, '2025-01-02', '2025-01-03');",
+        "INSERT INTO orders VALUES (2, '2025-01-03', NULL);",
+        "INSERT INTO orders VALUES (3, '2025-01-05', NULL);",
+        "INSERT INTO orders VALUES (4, NULL, NULL);"
+      ],
+      "expected_rows": [
+        {"customer_id": 2},
+        {"customer_id": 3}
+      ],
+      "reference_query": "SELECT customer_id FROM orders WHERE cancelled_at IS NULL AND paid_at IS NOT NULL ORDER BY customer_id;",
+      "why_it_breaks": "A model that writes `cancelled_at = NULL` silently fails because SQL NULL comparisons require `IS NULL` or `IS NOT NULL`."
+    },
+    {
+      "id": "date_boundary_demo",
+      "category": "Date and Time Boundaries",
+      "title": "June 2025 reporting window",
+      "question": "Return order ids for June 2025, inclusive of June 30 but not July 1.",
+      "schema_sql": "CREATE TABLE orders (order_id INTEGER, order_date TEXT);",
+      "inserts": [
+        "INSERT INTO orders VALUES (1, '2025-06-15T10:00:00');",
+        "INSERT INTO orders VALUES (2, '2025-06-30T12:00:00');",
+        "INSERT INTO orders VALUES (3, '2025-07-01T00:00:00');",
+        "INSERT INTO orders VALUES (4, '2025-05-31T23:59:59');"
+      ],
+      "expected_rows": [
+        {"order_id": 1},
+        {"order_id": 2}
+      ],
+      "reference_query": "SELECT order_id FROM orders WHERE order_date >= '2025-06-01' AND order_date < '2025-07-01' ORDER BY order_id;",
+      "why_it_breaks": "A common pitfall is using `<= '2025-06-30'`, which incorrectly admits July 1st boundaries or fails on timestamp precision."
+    },
+    {
+      "id": "aggregate_duplicate_demo",
+      "category": "Duplicate Records and Aggregation",
+      "title": "Customer totals by paid orders",
+      "question": "Return customer ids with more than one paid order and the total paid amount for each such customer.",
+      "schema_sql": "CREATE TABLE payments (customer_id INTEGER, amount REAL, status TEXT);",
+      "inserts": [
+        "INSERT INTO payments VALUES (10, 150.00, 'paid');",
+        "INSERT INTO payments VALUES (10, 250.00, 'paid');",
+        "INSERT INTO payments VALUES (11, 400.00, 'paid');",
+        "INSERT INTO payments VALUES (12, 320.00, 'paid');",
+        "INSERT INTO payments VALUES (12, 80.00, 'paid');",
+        "INSERT INTO payments VALUES (13, 25.00, 'pending');"
+      ],
+      "expected_rows": [
+        {"customer_id": 10, "total_amount": 400.0},
+        {"customer_id": 12, "total_amount": 400.0}
+      ],
+      "reference_query": "SELECT customer_id, SUM(amount) AS total_amount FROM payments WHERE status = 'paid' GROUP BY customer_id HAVING COUNT(*) > 1 ORDER BY customer_id;",
+      "why_it_breaks": "Models often forget to filter on paid rows first or they include customers with exactly one order, which changes both the grouping and the total."
+    },
+    {
+      "id": "zero_vs_null_demo",
+      "category": "Boolean Logic and Empty Results",
+      "title": "Zero-value invoices are not missing",
+      "question": "List invoice ids with a non-zero amount and no payment date, but do not treat zero as missing.",
+      "schema_sql": "CREATE TABLE invoices (invoice_id INTEGER, amount REAL, paid_at TEXT);",
+      "inserts": [
+        "INSERT INTO invoices VALUES (1, 0.00, NULL);",
+        "INSERT INTO invoices VALUES (2, 50.00, NULL);",
+        "INSERT INTO invoices VALUES (3, 75.00, '2025-02-15');",
+        "INSERT INTO invoices VALUES (4, 0.00, '2025-02-16');",
+        "INSERT INTO invoices VALUES (5, NULL, NULL);"
+      ],
+      "expected_rows": [
+        {"invoice_id": 2}
+      ],
+      "reference_query": "SELECT invoice_id FROM invoices WHERE amount IS NOT NULL AND amount != 0 AND paid_at IS NULL ORDER BY invoice_id;",
+      "why_it_breaks": "Zero is a valid numeric value, not NULL. Models often conflate missing values with zero when writing filters."
+    },
+    {
+      "id": "join_semantics_demo",
+      "category": "JOIN Semantics",
+      "title": "Exclude cancelled shipments",
+      "question": "Find orders that shipped and were not later cancelled. A refund entry should not cause a valid order to be excluded.",
+      "schema_sql": "CREATE TABLE orders (order_id INTEGER, shipped_at TEXT, cancelled_at TEXT, refund_amount REAL);",
+      "inserts": [
+        "INSERT INTO orders VALUES (21, '2025-03-10', NULL, 0.00);",
+        "INSERT INTO orders VALUES (22, '2025-03-11', '2025-03-12', 0.00);",
+        "INSERT INTO orders VALUES (23, '2025-03-13', NULL, 15.00);",
+        "INSERT INTO orders VALUES (24, '2025-03-14', NULL, NULL);"
+      ],
+      "expected_rows": [
+        {"order_id": 21},
+        {"order_id": 23},
+        {"order_id": 24}
+      ],
+      "reference_query": "SELECT order_id FROM orders WHERE shipped_at IS NOT NULL AND cancelled_at IS NULL ORDER BY order_id;",
+      "why_it_breaks": "Many models treat refund rows or non-cancellation flags as evidence of a cancellation problem, even when the order was never cancelled."
+    }
+  ]
+}

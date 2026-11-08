@@ -1,63 +1,82 @@
-# SQL Edge-Case Eval
+# SQLTrap-Eval
 
-This project is a compact benchmark for a real limitation in modern AI systems: SQL reasoning under edge conditions.
+SQLTrap-Eval is a reproducible benchmark designed to test whether frontier AI models can reason about SQL semantics rather than just generate syntactically plausible queries.
 
-## Why this gap matters
+## Problem statement
 
-Frontier models can write straightforward SELECT statements, but they often miss the subtle logic that experienced analysts handle automatically:
+Modern models can often produce valid SQL for straightforward CRUD and reporting tasks, but they are much less reliable when the query depends on subtle business logic: `NULL` handling, duplicate data, date boundaries, aggregation semantics, and join behavior.
 
-- `NULL` semantics (`IS NULL` vs `= NULL`)
-- date-window boundaries (`>= start AND < end`)
-- duplicate groups and aggregation semantics
-- zero-vs-null distinctions
-- exclusion logic for cancelled or refunded records
+The core research question is simple:
 
-These are not trick questions. They are everyday correctness problems in analytics and data engineering, and they are easy to verify with real test data.
+- Can the model produce a query that is correct under real-world edge conditions?
+- Or does it just produce a SQL-looking answer that executes but fails semantically?
 
-## Eval structure
+This benchmark focuses on those failure modes.
 
-The benchmark contains five tasks. Each task includes:
+## What is included
 
-1. a realistic SQL question,
-2. a minimal SQLite schema,
-3. a small dataset,
-4. a correct answer in SQL,
-5. a deterministic grader that compares the result set to the expected output.
+This repository includes:
 
-Because the grader runs the candidate SQL against an in-memory SQLite database, the result is fully reproducible and has no ambiguity about what counts as a pass.
+- a demo benchmark of SQL edge-case tasks,
+- expert-style expected outputs,
+- a deterministic SQLite grader,
+- scripts to reproduce evaluation,
+- a benchmark directory structure aligned to the research proposal.
 
-## How to run
+## Repository layout
+
+- [tasks.json](tasks.json): compact benchmark tasks used for local grading
+- [grader.py](grader.py): SQLite result-based evaluator
+- [run_eval.py](run_eval.py): sample benchmark runner
+- [test_cases/demo_cases.json](test_cases/demo_cases.json): benchmark tasks and metadata
+- [ground_truth/demo_expected.json](ground_truth/demo_expected.json): expected outputs
+- [schemas/ecommerce_demo.sql](schemas/ecommerce_demo.sql): example schema
+- [datasets/seed_demo_data.py](datasets/seed_demo_data.py): reproducible synthetic dataset generator
+- [evaluation/run_sqltrap_eval.py](evaluation/run_sqltrap_eval.py): evaluation runner
+- [reports/](reports/): generated benchmark reports
+
+## Demo categories included
+
+The current demo dataset covers:
+
+1. NULL semantics
+2. date and time boundaries
+3. duplicate aggregation problems
+4. zero-vs-null logic
+5. join semantics and cancellation logic
+
+## Run the demo
 
 ```bash
 python run_eval.py
 ```
 
-You can also run the unit tests:
+Or run the structured benchmark script:
+
+```bash
+python evaluation/run_sqltrap_eval.py
+```
+
+## Test the grader
 
 ```bash
 python -m unittest discover -s tests -q
 ```
 
-## Scoring
+## Why this matters
 
-Each task is scored as:
+This benchmark is intentionally built around problems that experienced analysts solve automatically:
 
-- `1.0` if the candidate SQL returns the exact expected rows
-- `0.0` otherwise
+- `= NULL` vs `IS NULL`
+- month-end and midnight boundaries
+- `COUNT(*)` vs `COUNT(column)`
+- zero as a valid value, not a missing value
+- cancelled vs refunded vs valid orders
 
-The final score is the fraction of tasks passed. This avoids false positives from partial reasoning or fuzzy grading.
+These cases often pass syntax checks but fail in production reporting.
 
-## Example failure modes the benchmark catches
+## Research direction
 
-- using `= NULL` instead of `IS NULL`
-- using `<= end_date` when the correct logic is `< next_period_start`
-- summing duplicate customers instead of grouping them correctly
-- treating zero as missing data
-- excluding valid orders because a refund row exists, even when the order was not cancelled
+The project can be extended into a much larger benchmark with 30-50 cases across the eight categories listed in the master research brief: NULL semantics, join logic, grouping, window functions, date boundaries, boolean logic, and hidden perturbation sets.
 
-## Files
-
-- `tasks.json` contains the benchmark tasks.
-- `grader.py` executes candidate SQL and compares output to expected rows.
-- `run_eval.py` runs a reference solution and a common-failure baseline.
-- `tests/test_grader.py` verifies the grading logic.
+This release is a working demo case proving the evaluation mechanism and grading approach.
