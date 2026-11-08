@@ -1,57 +1,50 @@
 # SQLTrap-Eval
 
-SQLTrap-Eval is a reproducible benchmark designed to test whether frontier AI models can reason about SQL semantics rather than just generate syntactically plausible queries.
+SQLTrap-Eval is a reproducible benchmark designed to test whether frontier AI models can reason about SQL semantics rather than simply generate syntactically plausible queries.
 
 ## Problem statement
 
-Modern models can often produce valid SQL for straightforward CRUD and reporting tasks, but they are much less reliable when the query depends on subtle business logic: `NULL` handling, duplicate data, date boundaries, aggregation semantics, and join behavior.
+Modern models often succeed on basic SELECT and JOIN tasks but fail on edge cases that matter in real business analytics: `NULL` logic, duplicate rows, date boundaries, grouping semantics, window functions, and join behavior.
 
-The core research question is simple:
+This benchmark targets those failures directly.
 
-- Can the model produce a query that is correct under real-world edge conditions?
-- Or does it just produce a SQL-looking answer that executes but fails semantically?
+## What is now included
 
-This benchmark focuses on those failure modes.
+This repository now contains a fuller benchmark prototype covering multiple categories:
 
-## What is included
+- NULL semantics
+- duplicate records and aggregation
+- date and time boundaries
+- join semantics
+- grouping and HAVING logic
+- window functions and ranking
+- boolean precedence and conditional expressions
+- empty-result and missing-relationship edge cases
 
-This repository includes:
-
-- a demo benchmark of SQL edge-case tasks,
-- expert-style expected outputs,
-- a deterministic SQLite grader,
-- scripts to reproduce evaluation,
-- a benchmark directory structure aligned to the research proposal.
+The suite is stored in [test_cases/sqltrap_cases.json](test_cases/sqltrap_cases.json) and evaluated by [evaluation/scorer.py](evaluation/scorer.py).
 
 ## Repository layout
 
-- [tasks.json](tasks.json): compact benchmark tasks used for local grading
-- [grader.py](grader.py): SQLite result-based evaluator
-- [run_eval.py](run_eval.py): sample benchmark runner
-- [test_cases/demo_cases.json](test_cases/demo_cases.json): benchmark tasks and metadata
-- [ground_truth/demo_expected.json](ground_truth/demo_expected.json): expected outputs
+- [run_eval.py](run_eval.py): benchmark runner for the expanded suite
+- [grader.py](grader.py): original SQLite grader used by the demo tasks
+- [tasks.json](tasks.json): earlier compact demo tasks
+- [test_cases/sqltrap_cases.json](test_cases/sqltrap_cases.json): expanded benchmark suite
+- [evaluation/scorer.py](evaluation/scorer.py): deterministic scoring logic
+- [evaluation/run_sqltrap_eval.py](evaluation/run_sqltrap_eval.py): evaluation runner for reports
+- [datasets/seed_demo_data.py](datasets/seed_demo_data.py): synthetic demo data generator
 - [schemas/ecommerce_demo.sql](schemas/ecommerce_demo.sql): example schema
-- [datasets/seed_demo_data.py](datasets/seed_demo_data.py): reproducible synthetic dataset generator
-- [evaluation/run_sqltrap_eval.py](evaluation/run_sqltrap_eval.py): evaluation runner
+- [ground_truth/demo_expected.json](ground_truth/demo_expected.json): expected outputs for the original demo tasks
 - [reports/](reports/): generated benchmark reports
 
-## Demo categories included
-
-The current demo dataset covers:
-
-1. NULL semantics
-2. date and time boundaries
-3. duplicate aggregation problems
-4. zero-vs-null logic
-5. join semantics and cancellation logic
-
-## Run the demo
+## Run the expanded benchmark
 
 ```bash
 python run_eval.py
 ```
 
-Or run the structured benchmark script:
+This loads the category-rich suite and reports per-task and per-category results.
+
+## Run the demo report script
 
 ```bash
 python evaluation/run_sqltrap_eval.py
@@ -63,20 +56,25 @@ python evaluation/run_sqltrap_eval.py
 python -m unittest discover -s tests -q
 ```
 
-## Why this matters
+## Why this extension matters
 
-This benchmark is intentionally built around problems that experienced analysts solve automatically:
+The benchmark is intentionally designed around edge cases that experienced analysts catch automatically:
 
 - `= NULL` vs `IS NULL`
 - month-end and midnight boundaries
 - `COUNT(*)` vs `COUNT(column)`
 - zero as a valid value, not a missing value
-- cancelled vs refunded vs valid orders
+- cancellations vs valid orders
+- ranking ties and partition logic
 
-These cases often pass syntax checks but fail in production reporting.
+These are real-world semantic issues, not trick SQL puzzles.
 
-## Research direction
+## Roadmap
 
-The project can be extended into a much larger benchmark with 30-50 cases across the eight categories listed in the master research brief: NULL semantics, join logic, grouping, window functions, date boundaries, boolean logic, and hidden perturbation sets.
+The current repo is a strong benchmark prototype. It can be extended toward the broader research brief by adding:
 
-This release is a working demo case proving the evaluation mechanism and grading approach.
+- more hidden perturbation datasets,
+- more category-specific cases,
+- a leaderboard for multiple AI models,
+- CSV/JSON export for reproducible comparison,
+- a final report with category-wise failure analysis.

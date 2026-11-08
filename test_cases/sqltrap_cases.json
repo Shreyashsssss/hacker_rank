@@ -1,0 +1,198 @@
+{
+  "benchmark": "SQLTrap-Eval Expanded Demo",
+  "description": "A fuller benchmark covering SQL edge cases across NULL semantics, joins, window functions, date boundaries, and aggregation logic.",
+  "tasks": [
+    {
+      "id": "t01_null_paid_not_cancelled",
+      "category": "NULL Semantics",
+      "difficulty": "easy",
+      "question": "List customer ids whose cancelled_at is NULL and paid_at is not NULL.",
+      "schema_sql": "CREATE TABLE orders (customer_id INTEGER, paid_at TEXT, cancelled_at TEXT);",
+      "inserts": [
+        "INSERT INTO orders VALUES (1, '2025-01-02', '2025-01-03');",
+        "INSERT INTO orders VALUES (2, '2025-01-03', NULL);",
+        "INSERT INTO orders VALUES (3, '2025-01-05', NULL);",
+        "INSERT INTO orders VALUES (4, NULL, NULL);"
+      ],
+      "expected_rows": [{"customer_id": 2}, {"customer_id": 3}],
+      "reference_query": "SELECT customer_id FROM orders WHERE cancelled_at IS NULL AND paid_at IS NOT NULL ORDER BY customer_id;",
+      "hidden_variants": [
+        "SELECT customer_id FROM orders WHERE cancelled_at IS NULL AND paid_at IS NOT NULL ORDER BY customer_id;"
+      ]
+    },
+    {
+      "id": "t02_has_at_least_one_order",
+      "category": "NULL Semantics",
+      "difficulty": "medium",
+      "question": "Return customer ids that have placed at least one order.",
+      "schema_sql": "CREATE TABLE customers (customer_id INTEGER); CREATE TABLE orders (order_id INTEGER, customer_id INTEGER);",
+      "inserts": [
+        "INSERT INTO customers VALUES (1); INSERT INTO customers VALUES (2); INSERT INTO customers VALUES (3);",
+        "INSERT INTO orders VALUES (10, 1); INSERT INTO orders VALUES (11, 2);",
+        "INSERT INTO orders VALUES (12, 3); INSERT INTO orders VALUES (13, 3);"
+      ],
+      "expected_rows": [{"customer_id": 1}, {"customer_id": 2}, {"customer_id": 3}],
+      "reference_query": "SELECT DISTINCT c.customer_id FROM customers c JOIN orders o ON o.customer_id = c.customer_id ORDER BY c.customer_id;",
+      "hidden_variants": [
+        "SELECT customer_id FROM customers WHERE customer_id IN (1,2,3) ORDER BY customer_id;"
+      ]
+    },
+    {
+      "id": "t03_duplicate_group_totals",
+      "category": "Duplicate Records and Aggregation",
+      "difficulty": "medium",
+      "question": "For each customer with more than one paid order, return the total amount paid.",
+      "schema_sql": "CREATE TABLE payments (customer_id INTEGER, amount REAL, status TEXT);",
+      "inserts": [
+        "INSERT INTO payments VALUES (10, 150.00, 'paid');",
+        "INSERT INTO payments VALUES (10, 250.00, 'paid');",
+        "INSERT INTO payments VALUES (11, 400.00, 'paid');",
+        "INSERT INTO payments VALUES (12, 320.00, 'paid');",
+        "INSERT INTO payments VALUES (12, 80.00, 'paid');",
+        "INSERT INTO payments VALUES (13, 25.00, 'pending');"
+      ],
+      "expected_rows": [
+        {"customer_id": 10, "total_amount": 400.0},
+        {"customer_id": 12, "total_amount": 400.0}
+      ],
+      "reference_query": "SELECT customer_id, SUM(amount) AS total_amount FROM payments WHERE status = 'paid' GROUP BY customer_id HAVING COUNT(*) > 1 ORDER BY customer_id;",
+      "hidden_variants": [
+        "SELECT customer_id, SUM(amount) AS total_amount FROM payments WHERE status = 'paid' GROUP BY customer_id HAVING COUNT(*) > 1 ORDER BY customer_id;"
+      ]
+    },
+    {
+      "id": "t04_date_boundary_june",
+      "category": "Date and Time Boundaries",
+      "difficulty": "medium",
+      "question": "Return order ids for June 2025, inclusive of June 30 but not July 1.",
+      "schema_sql": "CREATE TABLE orders (order_id INTEGER, order_date TEXT);",
+      "inserts": [
+        "INSERT INTO orders VALUES (1, '2025-06-15T10:00:00');",
+        "INSERT INTO orders VALUES (2, '2025-06-30T12:00:00');",
+        "INSERT INTO orders VALUES (3, '2025-07-01T00:00:00');",
+        "INSERT INTO orders VALUES (4, '2025-05-31T23:59:59');"
+      ],
+      "expected_rows": [{"order_id": 1}, {"order_id": 2}],
+      "reference_query": "SELECT order_id FROM orders WHERE order_date >= '2025-06-01' AND order_date < '2025-07-01' ORDER BY order_id;",
+      "hidden_variants": [
+        "SELECT order_id FROM orders WHERE order_date >= '2025-06-01' AND order_date < '2025-07-01' ORDER BY order_id;"
+      ]
+    },
+    {
+      "id": "t05_left_join_where_bug",
+      "category": "JOIN Semantics",
+      "difficulty": "medium",
+      "question": "Return customers and their order counts, including customers with zero orders.",
+      "schema_sql": "CREATE TABLE customers (customer_id INTEGER, name TEXT); CREATE TABLE orders (order_id INTEGER, customer_id INTEGER);",
+      "inserts": [
+        "INSERT INTO customers VALUES (1, 'Ada'); INSERT INTO customers VALUES (2, 'Ben'); INSERT INTO customers VALUES (3, 'Cara');",
+        "INSERT INTO orders VALUES (101, 1); INSERT INTO orders VALUES (102, 1); INSERT INTO orders VALUES (103, 3);"
+      ],
+      "expected_rows": [
+        {"customer_id": 1, "order_count": 2},
+        {"customer_id": 2, "order_count": 0},
+        {"customer_id": 3, "order_count": 1}
+      ],
+      "reference_query": "SELECT c.customer_id, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_id ORDER BY c.customer_id;",
+      "hidden_variants": [
+        "SELECT c.customer_id, COUNT(o.order_id) AS order_count FROM customers c LEFT JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_id ORDER BY c.customer_id;"
+      ]
+    },
+    {
+      "id": "t06_group_by_having",
+      "category": "GROUP BY and Aggregation Logic",
+      "difficulty": "medium",
+      "question": "List departments with an average salary above 70,000.",
+      "schema_sql": "CREATE TABLE employees (employee_id INTEGER, dept TEXT, salary REAL);",
+      "inserts": [
+        "INSERT INTO employees VALUES (1, 'A', 80000);",
+        "INSERT INTO employees VALUES (2, 'A', 60000);",
+        "INSERT INTO employees VALUES (3, 'B', 75000);",
+        "INSERT INTO employees VALUES (4, 'B', 73000);",
+        "INSERT INTO employees VALUES (5, 'C', 50000);"
+      ],
+      "expected_rows": [{"dept": "B", "avg_salary": 74000.0}],
+      "reference_query": "SELECT dept, AVG(salary) AS avg_salary FROM employees GROUP BY dept HAVING AVG(salary) > 70000 ORDER BY dept;",
+      "hidden_variants": [
+        "SELECT dept, AVG(salary) AS avg_salary FROM employees GROUP BY dept HAVING AVG(salary) > 70000 ORDER BY dept;"
+      ]
+    },
+    {
+      "id": "t07_rank_ties",
+      "category": "Window Functions and Ranking",
+      "difficulty": "hard",
+      "question": "Rank employees by salary with ties sharing the same rank.",
+      "schema_sql": "CREATE TABLE employees (employee_id INTEGER, name TEXT, salary REAL);",
+      "inserts": [
+        "INSERT INTO employees VALUES (1, 'Ada', 90000);",
+        "INSERT INTO employees VALUES (2, 'Ben', 90000);",
+        "INSERT INTO employees VALUES (3, 'Cara', 80000);",
+        "INSERT INTO employees VALUES (4, 'Drew', 70000);"
+      ],
+      "expected_rows": [
+        {"name": "Ada", "salary": 90000, "rank": 1},
+        {"name": "Ben", "salary": 90000, "rank": 1},
+        {"name": "Cara", "salary": 80000, "rank": 3},
+        {"name": "Drew", "salary": 70000, "rank": 4}
+      ],
+      "reference_query": "SELECT name, salary, RANK() OVER (ORDER BY salary DESC) AS rank FROM employees ORDER BY salary DESC, name;",
+      "hidden_variants": [
+        "SELECT name, salary, RANK() OVER (ORDER BY salary DESC) AS rank FROM employees ORDER BY salary DESC, name;"
+      ]
+    },
+    {
+      "id": "t08_boolean_precedence",
+      "category": "Boolean Logic and Conditional Expressions",
+      "difficulty": "medium",
+      "question": "Return rows where a customer is active and either premium or older than 30 days in the system.",
+      "schema_sql": "CREATE TABLE customers (customer_id INTEGER, is_active INTEGER, is_premium INTEGER, days_since_signup INTEGER);",
+      "inserts": [
+        "INSERT INTO customers VALUES (1, 1, 0, 20);",
+        "INSERT INTO customers VALUES (2, 1, 1, 20);",
+        "INSERT INTO customers VALUES (3, 1, 0, 40);",
+        "INSERT INTO customers VALUES (4, 0, 1, 40);",
+        "INSERT INTO customers VALUES (5, 0, 0, 5);"
+      ],
+      "expected_rows": [{"customer_id": 2}, {"customer_id": 3}],
+      "reference_query": "SELECT customer_id FROM customers WHERE is_active = 1 AND (is_premium = 1 OR days_since_signup > 30) ORDER BY customer_id;",
+      "hidden_variants": [
+        "SELECT customer_id FROM customers WHERE is_active = 1 AND (is_premium = 1 OR days_since_signup > 30) ORDER BY customer_id;"
+      ]
+    },
+    {
+      "id": "t09_zero_is_not_null",
+      "category": "Empty Results and Boundary Conditions",
+      "difficulty": "easy",
+      "question": "List invoice ids with a non-zero amount and no payment date.",
+      "schema_sql": "CREATE TABLE invoices (invoice_id INTEGER, amount REAL, paid_at TEXT);",
+      "inserts": [
+        "INSERT INTO invoices VALUES (1, 0.00, NULL);",
+        "INSERT INTO invoices VALUES (2, 50.00, NULL);",
+        "INSERT INTO invoices VALUES (3, 75.00, '2025-02-15');",
+        "INSERT INTO invoices VALUES (4, 0.00, '2025-02-16');",
+        "INSERT INTO invoices VALUES (5, NULL, NULL);"
+      ],
+      "expected_rows": [{"invoice_id": 2}],
+      "reference_query": "SELECT invoice_id FROM invoices WHERE amount IS NOT NULL AND amount != 0 AND paid_at IS NULL ORDER BY invoice_id;",
+      "hidden_variants": [
+        "SELECT invoice_id FROM invoices WHERE amount IS NOT NULL AND amount != 0 AND paid_at IS NULL ORDER BY invoice_id;"
+      ]
+    },
+    {
+      "id": "t10_empty_and_missing_fk",
+      "category": "Empty Results and Boundary Conditions",
+      "difficulty": "easy",
+      "question": "Return all products with no sales record in the sales table.",
+      "schema_sql": "CREATE TABLE products (product_id INTEGER, product_name TEXT); CREATE TABLE sales (sale_id INTEGER, product_id INTEGER);",
+      "inserts": [
+        "INSERT INTO products VALUES (1, 'A'); INSERT INTO products VALUES (2, 'B'); INSERT INTO products VALUES (3, 'C');",
+        "INSERT INTO sales VALUES (10, 1); INSERT INTO sales VALUES (11, 3);"
+      ],
+      "expected_rows": [{"product_id": 2}],
+      "reference_query": "SELECT p.product_id FROM products p LEFT JOIN sales s ON s.product_id = p.product_id WHERE s.sale_id IS NULL ORDER BY p.product_id;",
+      "hidden_variants": [
+        "SELECT p.product_id FROM products p LEFT JOIN sales s ON s.product_id = p.product_id WHERE s.sale_id IS NULL ORDER BY p.product_id;"
+      ]
+    }
+  ]
+}
