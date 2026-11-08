@@ -1,0 +1,82 @@
+{
+  "benchmark": "SQLTrap-Eval Demo",
+  "summary": {
+    "total_tasks": 5,
+    "passed": 5,
+    "accuracy": 1.0
+  },
+  "results": [
+    {
+      "id": "null_logic_demo",
+      "category": "NULL Semantics",
+      "passed": true,
+      "score": 1.0,
+      "actual": [
+        {
+          "customer_id": 2
+        },
+        {
+          "customer_id": 3
+        }
+      ]
+    },
+    {
+      "id": "date_boundary_demo",
+      "category": "Date and Time Boundaries",
+      "passed": true,
+      "score": 1.0,
+      "actual": [
+        {
+          "order_id": 1
+        },
+        {
+          "order_id": 2
+        }
+      ]
+    },
+    {
+      "id": "aggregate_duplicate_demo",
+      "category": "Duplicate Records and Aggregation",
+      "passed": true,
+      "score": 1.0,
+      "actual": [
+        {
+          "customer_id": 10,
+          "total_amount": 400.0
+        },
+        {
+          "customer_id": 12,
+          "total_amount": 400.0
+        }
+      ]
+    },
+    {
+      "id": "zero_vs_null_demo",
+      "category": "Boolean Logic and Empty Results",
+      "passed": true,
+      "score": 1.0,
+      "actual": [
+        {
+          "invoice_id": 2
+        }
+      ]
+    },
+    {
+      "id": "join_semantics_demo",
+      "category": "JOIN Semantics",
+      "passed": true,
+      "score": 1.0,
+      "actual": [
+        {
+          "order_id": 21
+        },
+        {
+          "order_id": 23
+        },
+        {
+          "order_id": 24
+        }
+      ]
+    }
+  ]
+}
